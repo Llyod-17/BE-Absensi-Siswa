@@ -105,6 +105,7 @@ type TopAlfaStudent struct {
 	Name       string `json:"name"`
 	Nisn       string `json:"nisn"`
 	AlfaCount  int    `json:"alfaCount"`
+	TelatCount int    `json:"telatCount"`
 	ClassGroup string `json:"class_group"`
 }
 
@@ -112,11 +113,12 @@ func GetTopAlfaStudents(c *fiber.Ctx) error {
 	var result []TopAlfaStudent
 
 	err := database.DB.Table("attedance_logs").
-		Select("users.full_name as name, users.nisn, COUNT(attedance_logs.id) as alfa_count, users.class_group").
+		Select("users.full_name as name, users.nisn, SUM(CASE WHEN attedance_logs.status = 'alfa' THEN 1 ELSE 0 END) as alfa_count, SUM(CASE WHEN attedance_logs.status = 'telat' THEN 1 ELSE 0 END) as telat_count, users.class_group").
 		Joins("JOIN users ON users.id = attedance_logs.user_id").
-		Where("attedance_logs.status = ? AND users.role = ?", "alfa", "siswa").
+		Where("users.role = ?", "siswa").
 		Group("users.id, users.full_name, users.nisn, users.class_group").
-		Order("alfa_count DESC").
+		Having("alfa_count > 0 OR telat_count > 0").
+		Order("alfa_count DESC, telat_count DESC").
 		Limit(10).
 		Scan(&result).Error
 

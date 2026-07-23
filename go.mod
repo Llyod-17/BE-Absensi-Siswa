@@ -6,6 +6,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/joho/godotenv v1.5.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/swaggo/fiber-swagger v1.3.0
 	github.com/swaggo/swag v1.16.6
@@ -50,7 +51,6 @@ require (
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/zerolog v1.35.0 // indirect
 	github.com/swaggo/files v1.0.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
