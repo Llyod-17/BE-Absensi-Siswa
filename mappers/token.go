@@ -7,15 +7,13 @@ import (
 
 func ToTokenResponse(t *models.AttedanceTokens) responses.TokenRes {
 	return responses.TokenRes{
-		ID: t.ID,
-		TokenCode: t.TokenCode,
-		CreatedBy: responses.UserMini{
-			ID: t.User.ID,
-			FullName: t.User.FullName,
-		},
-		Category: t.Category,
-		IsActive: t.IsActive,
+		ID:         t.ID,
+		TokenCode:  t.TokenCode,
+		Category:   t.Category,
+		IsActive:   t.IsActive,
+		LateAfter:  t.LateAfter,
 		ValidUntil: t.ValidUntil,
-		CreatedAt: t.CreatedAt,
+		CreatedAt:  t.CreatedAt,
 	}
 }
+

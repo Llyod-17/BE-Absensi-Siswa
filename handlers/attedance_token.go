@@ -111,8 +111,6 @@ func CreateTokenTelat(c *fiber.Ctx) error {
 	})
 }
 
-
-
 // SubmitToken godoc
 // @Summary Submit token absensi
 // @Description Siswa memasukkan token untuk melakukan absensi
@@ -255,7 +253,7 @@ func SubmitToken(c *fiber.Ctx) error {
 	})
 }
 
-//ini untuk membuat api get qr code by id token
+// ini untuk membuat api get qr code by id token
 func GetTokenQRImage(c *fiber.Ctx) error {
 
 	id := c.Params("id")
@@ -285,7 +283,7 @@ func GetTokenQRImage(c *fiber.Ctx) error {
 	return c.Send(png)
 }
 
-//ini untuk membuat api get qr code all token aktif
+// ini untuk membuat api get qr code all token aktif
 func GetActiveTokens(c *fiber.Ctx) error {
 
 	var tokens []models.AttedanceTokens
@@ -390,38 +388,64 @@ func GetTokensPaginated(c *fiber.Ctx) error {
 	})
 }
 
-// DeactivateToken godoc
-// @Summary Deaktivasi token absensi secara manual
-// @Description Mengubah status token absensi agar tidak aktif (is_active = false) dan masa berlaku berakhir saat ini
+// UpdateToken godoc
+// @Summary Update token absensi (quick update)
+// @Description Memperbarui masa berlaku token (ValidUntil: 08:00, LateAfter: 07:30) untuk tanggal tertentu (default: besok)
 // @Tags token
+// @Accept json
 // @Produce json
 // @Param id path int true "Token ID"
+// @Param request body requests.QuickUpdateToken false "Request update token"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
-// @Router /token/{id}/deactivate [post]
-func DeactivateToken(c *fiber.Ctx) error {
+// @Router /token/{id}/update [post]
+func UpdateToken(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "ID token tidak valid"})
 	}
+
+	var req requests.QuickUpdateToken
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Muatan tidak valid"})
+	}
+
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	var targetDate time.Time
+
+	if req.Date != "" {
+		targetDate, err = time.ParseInLocation("2006-01-02", req.Date, loc)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Format tanggal tidak valid, gunakan YYYY-MM-DD"})
+		}
+	} else {
+		// Default to tomorrow
+		now := time.Now().In(loc)
+		targetDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).Add(24 * time.Hour)
+	}
+
+	validUntil := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 11, 0, 0, 0, loc)
+	lateAfter := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 6, 46, 0, 0, loc)
 
 	var token models.AttedanceTokens
 	if err := database.DB.First(&token, id).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "token tidak ditemukan"})
 	}
 
-	token.IsActive = false
-	token.ValidUntil = time.Now()
+	token.ValidUntil = validUntil
+	token.LateAfter = &lateAfter
+	token.IsActive = true               // Aktifkan kembali jika sempat dinonaktifkan
+	token.NotificationProcessed = false // Reset agar diproses kembali
 
-	if err := database.DB.Save(&token).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "gagal menonaktifkan token"})
+	if err := database.DB.Preload("User").Save(&token).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "gagal memperbarui token"})
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "token berhasil dinonaktifkan",
+		"message": "Token berhasil diperbarui",
+		"data":    mappers.ToTokenResponse(&token),
 	})
 }
-
