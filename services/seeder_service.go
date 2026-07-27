@@ -9,6 +9,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func ImportUsersFromExcel(path string) (*responses.ImportResult, error) {
@@ -27,31 +28,44 @@ func ImportUsersFromExcel(path string) (*responses.ImportResult, error) {
 
 	for i, row := range rows {
 
+		// Skip header
 		if i == 0 {
+			continue
+		}
+
+		// Skip baris kosong
+		if len(row) == 0 {
 			continue
 		}
 
 		if len(row) < 3 {
 			result.Failed++
+			result.FailedUsers = append(result.FailedUsers, responses.FailedUser{
+				Row:    i + 1,
+				Reason: "Jumlah kolom kurang dari 3",
+			})
 			continue
 		}
 
-		// Akses kolom secara aman dengan nilai default
 		nisn := row[0]
 		fullName := row[1]
 		username := row[2]
+
 		password := ""
 		if len(row) > 3 {
 			password = row[3]
 		}
+
 		classGroup := ""
 		if len(row) > 4 {
 			classGroup = row[4]
 		}
+
 		role := "siswa"
 		if len(row) > 5 && row[5] != "" {
 			role = row[5]
 		}
+
 		parentPhone := ""
 		if len(row) > 6 {
 			parentPhone = row[6]
@@ -59,13 +73,30 @@ func ImportUsersFromExcel(path string) (*responses.ImportResult, error) {
 
 		if password == "" {
 			result.Failed++
+			result.FailedUsers = append(result.FailedUsers, responses.FailedUser{
+				Row:    i + 1,
+				NISN:   nisn,
+				Name:   fullName,
+				Reason: "Password kosong",
+			})
 			continue
 		}
 
-		passwordHash, _ := bcrypt.GenerateFromPassword(
+		passwordHash, err := bcrypt.GenerateFromPassword(
 			[]byte(password),
 			bcrypt.DefaultCost,
 		)
+
+		if err != nil {
+			result.Failed++
+			result.FailedUsers = append(result.FailedUsers, responses.FailedUser{
+				Row:    i + 1,
+				NISN:   nisn,
+				Name:   fullName,
+				Reason: err.Error(),
+			})
+			continue
+		}
 
 		user := models.Users{
 			Nisn:        nisn,
@@ -79,28 +110,58 @@ func ImportUsersFromExcel(path string) (*responses.ImportResult, error) {
 
 		var existing models.Users
 
-		err := database.DB.Select("username").
-			Where("username = ?", user.Username).
+		err = database.DB.
+			Where("username = ? OR nisn = ?", user.Username, user.Nisn).
 			First(&existing).Error
 
 		if err == nil {
 			result.Duplicates++
-			result.SkippedUsers = append(
-				result.SkippedUsers,
-				user.Username,
-			)
+			result.SkippedUsers = append(result.SkippedUsers, user.Username)
+			continue
+		}
+
+		if err != gorm.ErrRecordNotFound {
+			result.Failed++
+			result.FailedUsers = append(result.FailedUsers, responses.FailedUser{
+				Row:    i + 1,
+				NISN:   nisn,
+				Name:   fullName,
+				Reason: err.Error(),
+			})
 			continue
 		}
 
 		if err := database.DB.Create(&user).Error; err != nil {
+
 			result.Failed++
+
+			result.FailedUsers = append(result.FailedUsers, responses.FailedUser{
+				Row:    i + 1,
+				NISN:   nisn,
+				Name:   fullName,
+				Reason: err.Error(),
+			})
+
+			fmt.Printf(
+				"[FAILED] Row=%d NISN=%s Name=%s Error=%v\n",
+				i+1,
+				nisn,
+				fullName,
+				err,
+			)
+
 			continue
 		}
 
 		result.Inserted++
-		fmt.Println("Inserted:", user.Username)
+
+		fmt.Printf(
+			"[INSERTED] Row=%d NISN=%s Name=%s\n",
+			i+1,
+			nisn,
+			fullName,
+		)
 	}
 
 	return result, nil
 }
-
