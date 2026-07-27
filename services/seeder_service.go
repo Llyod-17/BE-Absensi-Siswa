@@ -11,9 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
-
-func ImportUsersFromExcel(path string) (*responses.ImportResult,error){
+func ImportUsersFromExcel(path string) (*responses.ImportResult, error) {
 
 	file, err := excelize.OpenFile(path)
 	if err != nil {
@@ -27,7 +25,7 @@ func ImportUsersFromExcel(path string) (*responses.ImportResult,error){
 
 	result := &responses.ImportResult{}
 
-	for i,row := range rows {
+	for i, row := range rows {
 
 		if i == 0 {
 			continue
@@ -64,25 +62,25 @@ func ImportUsersFromExcel(path string) (*responses.ImportResult,error){
 			continue
 		}
 
-		passwordHash,_ := bcrypt.GenerateFromPassword(
+		passwordHash, _ := bcrypt.GenerateFromPassword(
 			[]byte(password),
 			bcrypt.DefaultCost,
 		)
 
 		user := models.Users{
-			Nisn: nisn,
-			FullName: fullName,
-			Username: username,
-			Password: string(passwordHash),
-			Role: role,
-			ClassGroup: classGroup,
+			Nisn:        nisn,
+			FullName:    fullName,
+			Username:    username,
+			Password:    string(passwordHash),
+			Role:        role,
+			ClassGroup:  classGroup,
 			ParentPhone: parentPhone,
 		}
 
 		var existing models.Users
 
-		err := database.DB.
-			Where("username = ?",user.Username).
+		err := database.DB.Select("username").
+			Where("username = ?", user.Username).
 			First(&existing).Error
 
 		if err == nil {
@@ -94,14 +92,15 @@ func ImportUsersFromExcel(path string) (*responses.ImportResult,error){
 			continue
 		}
 
-		if err := database.DB.Create(&user).Error; err != nil{
+		if err := database.DB.Create(&user).Error; err != nil {
 			result.Failed++
 			continue
 		}
 
 		result.Inserted++
-		fmt.Println("Inserted:",user.Username)
+		fmt.Println("Inserted:", user.Username)
 	}
 
-	return result,nil
+	return result, nil
 }
+
