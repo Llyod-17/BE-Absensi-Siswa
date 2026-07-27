@@ -5,8 +5,10 @@ import (
 	"time"
 )
 
+var jakarta, _ = time.LoadLocation("Asia/Jakarta")
+
 func Now() time.Time {
-	return time.Now() // pakai local WIB aja
+	return time.Now().In(jakarta)
 }
 
 func DayRange(dateStr string) (time.Time, time.Time, error) {
@@ -62,4 +64,3 @@ func DateRange(startStr, endStr string) (time.Time, time.Time, error) {
 
 	return startOfDay, endOfDay, nil
 }
-
