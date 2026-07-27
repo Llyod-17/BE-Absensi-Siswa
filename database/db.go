@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-//bikin type untuk DB
+// bikin type untuk DB
 var DB *gorm.DB
 
 func ConnectDB() error {
@@ -17,7 +17,7 @@ func ConnectDB() error {
 	cfg := config.AppConfig
 
 	//lakukan koneksi ke database dengan config tersebut
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Asia%%2FJakarta",
 		cfg.DBUser,
 		cfg.DBPassword,
 		cfg.DBHost,
@@ -36,3 +36,4 @@ func ConnectDB() error {
 	fmt.Println("👌 CONNECT TO DATABASE COMPLETED !")
 	return nil
 }
+
