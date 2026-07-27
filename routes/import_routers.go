@@ -8,5 +8,5 @@ import (
 
 func SetupimportRoutes(api fiber.Router) {
 	importGroup := api.Group("/import")
-	importGroup.Post("/users", middleware.SuperAdminOnly, handlers.ImportUsersExcel)
+	importGroup.Post("/users", middleware.AdminOnly, handlers.ImportUsersExcel)
 }
