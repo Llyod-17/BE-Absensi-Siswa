@@ -65,7 +65,7 @@ func VerifyTokenCode(input string) (token *models.AttedanceTokens, isExpired boo
 		Where("token_code = ? AND is_active = ?", input, true).
 		First(&t).Error
 	if e != nil {
-		return nil, false, errors.New("Token tidak ditemukan!")
+		return nil, false, errors.New("Token expired !")
 	}
 
 	// cek expired — tetap return token, tapi tandai isExpired = true
