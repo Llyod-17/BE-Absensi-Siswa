@@ -427,8 +427,8 @@ func UpdateToken(c *fiber.Ctx) error {
 		targetDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).Add(24 * time.Hour)
 	}
 
-	validUntil := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 21, 25, 0, 0, loc)
-	lateAfter := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 21, 23, 0, 0, loc)
+	validUntil := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 22, 55, 0, 0, loc)
+	lateAfter := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 22, 53, 0, 0, loc)
 
 	var token models.AttedanceTokens
 	if err := database.DB.First(&token, id).Error; err != nil {
