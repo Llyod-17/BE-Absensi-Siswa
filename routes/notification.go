@@ -23,10 +23,10 @@ func SetupNotificationRoutes(api fiber.Router) {
 	notif.Post("/trigger", middleware.AdminOnly, handlers.TriggerNotificationNow)
 
 	// WhatsApp management — hanya admin/superadmin
-	wa := notif.Group("/wa")
-	wa.Get("/status", middleware.AdminOnly, handlers.GetWAStatus)
-	wa.Post("/pair", middleware.AdminOnly, handlers.PairWA)
-	wa.Post("/logout", middleware.AdminOnly, handlers.LogoutWA)
+	// wa := notif.Group("/wa")
+	// wa.Get("/status", middleware.AdminOnly, handlers.GetWAStatus)
+	// wa.Post("/pair", middleware.AdminOnly, handlers.PairWA)
+	// wa.Post("/logout", middleware.AdminOnly, handlers.LogoutWA)
 
 	// Set status absensi siswa — guru/admin/superadmin
 	attendance := api.Group("/attendance")

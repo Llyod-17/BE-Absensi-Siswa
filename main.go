@@ -42,20 +42,14 @@ func main() {
 		&models.AdminNotifications{},
 	)
 
-	// Inisialisasi WhatsApp client di background (non-blocking)
-	// Supaya server Fiber langsung menyala tanpa menunggu scan QR
-	go func() {
-		if err := services.InitWA(); err != nil {
-			log.Printf("[WA] Gagal inisialisasi: %v (server tetap jalan)", err)
-			return
-		}
-		if err := services.ConnectWA(); err != nil {
-			log.Printf("[WA] Gagal connect: %v (server tetap jalan)", err)
-			return
-		}
-		log.Println("[WA] WhatsApp berhasil terkoneksi di background.")
-
-	}()
+	// Inisialisasi WAHA (validate config)
+	if err := services.InitWA(); err != nil {
+		log.Printf("[WAHA] Gagal inisialisasi: %v", err)
+	} else if err := services.ConnectWA(); err != nil {
+		log.Printf("[WAHA] Gagal connect: %v", err)
+	} else {
+		log.Println("[WAHA] Berhasil terhubung ke WAHA API.")
+	}
 
 	//to running seeders
 	seeders.RunSeed()
@@ -105,11 +99,6 @@ func main() {
 	}
 
 	// Cron scheduler sudah tidak digunakan
-
-	if services.WAClient != nil {
-		services.WAClient.Disconnect()
-		log.Println("[WA] Koneksi WhatsApp diputus.")
-	}
 
 	log.Println("Server berhasil dimatikan dengan aman.")
 	

@@ -15,6 +15,11 @@ type Config struct {
 	DBHost     string
 	DBPort     string
 	Port       string
+	WAHAURL    string
+	WAHAAPIKey string
+	WAHASession string
+	WAHASwaggerUsername string
+	WAHASwaggerPassword string
 }
 
 //variable dari struct
@@ -35,5 +40,10 @@ func LoadEnv() {
 		DBUser:     os.Getenv("DB_USER"),
 		DBHost:     os.Getenv("DB_HOST"),
 		DBPort:     os.Getenv("DB_PORT"),
+		WAHAURL:    os.Getenv("WAHA_URL"),
+		WAHAAPIKey: os.Getenv("WAHA_API_KEY"),
+		WAHASession: os.Getenv("WAHA_SESSION"),
+		WAHASwaggerUsername: os.Getenv("WHATSAPP_SWAGGER_USERNAME"),
+		WAHASwaggerPassword: os.Getenv("WHATSAPP_SWAGGER_PASSWORD"),
 	}
 }

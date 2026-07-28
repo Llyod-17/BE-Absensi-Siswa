@@ -1,10 +1,8 @@
 package services
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"math/rand"
 	"regexp"
 	"strings"
 	"sync"
@@ -13,9 +11,6 @@ import (
 
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/models"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/repo"
-	"go.mau.fi/whatsmeow/proto/waE2E"
-	"go.mau.fi/whatsmeow/types"
-	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
 
@@ -57,26 +52,13 @@ func NormalizePhone(phone string) string {
 	return phone
 }
 
-// SendWhatsAppMessage — kirim pesan WA lewat whatsmeow client
-// Menggunakan context timeout 15 detik agar tidak hang jika koneksi mati.
+// SendWhatsAppMessage — kirim pesan WA lewat WAHA API
 func SendWhatsAppMessage(phone, message string) (string, error) {
-	if WAClient == nil || !WAClient.IsConnected() {
-		return "", fmt.Errorf("WhatsApp client belum terhubung")
-	}
-
-	jid := types.NewJID(NormalizePhone(phone), types.DefaultUserServer)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	resp, err := WAClient.SendMessage(ctx, jid, &waE2E.Message{
-		Conversation: proto.String(message),
-	})
+	err := SendWAHA(NormalizePhone(phone), message)
 	if err != nil {
-		return "", fmt.Errorf("gagal kirim pesan: %w", err)
+		return "", fmt.Errorf("gagal kirim pesan via WAHA: %w", err)
 	}
-
-	return fmt.Sprintf("sent_at:%s", resp.Timestamp.String()), nil
+	return "sent_via_waha", nil
 }
 
 // BuildNotificationMessage — bikin teks pesan dinamis sesuai status (pake switch-case)
@@ -183,16 +165,8 @@ func queueNotificationBatch(db *gorm.DB, settings map[string]string, targets []n
 // StartNotificationSender — background worker untuk memproses antrean pesan WA (pending)
 func StartNotificationSender(db *gorm.DB) {
 	go func() {
-		// Inisialisasi generator angka acak
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
 		for {
 			time.Sleep(15 * time.Second) // Cek setiap 15 detik
-
-			// Cek apakah WhatsApp client terkoneksi
-			if WAClient == nil || !WAClient.IsConnected() {
-				continue
-			}
 
 			// Gunakan atomic flag untuk mencegah worker ganda berjalan bersamaan
 			if !atomic.CompareAndSwapInt32(&isSendingNotifications, 0, 1) {
@@ -218,13 +192,6 @@ func StartNotificationSender(db *gorm.DB) {
 			log.Printf("[WA-SENDER] Memproses %d pesan pending...", len(pendingLogs))
 
 			for _, l := range pendingLogs {
-				// Cek koneksi di tiap pengiriman pesan
-				if WAClient == nil || !WAClient.IsConnected() {
-					log.Println("[WA-SENDER] Koneksi terputus saat broadcast berjalan, menghentikan antrean.")
-					repo.InsertNotification("Koneksi WhatsApp Terputus", "Koneksi terputus saat broadcast berjalan", "WA error")
-					break
-				}
-
 				log.Printf("[WA-SENDER] Mengirim pesan ke %s (log ID: %d)...", l.Phone, l.ID)
 				responseStatus, err := SendWhatsAppMessage(l.Phone, l.Message)
 
@@ -242,9 +209,8 @@ func StartNotificationSender(db *gorm.DB) {
 					Where("id = ?", l.ID).
 					Update("response_status", deliveryStatus)
 
-				// Jitter 3 - 7 detik biar ga gampang di-banned
-				jitter := time.Duration(3+r.Intn(5)) * time.Second
-				time.Sleep(jitter)
+				// Delay 10 detik sesuai permintaan
+				time.Sleep(10 * time.Second)
 			}
 
 			atomic.StoreInt32(&isSendingNotifications, 0)
@@ -264,32 +230,6 @@ func NotifyPresentStudents(db *gorm.DB) {
 	if settings["wa_enabled"] != "true" {
 		log.Println("[WA] Notifikasi WA lagi off.")
 		return
-	}
-
-	// 1. Tandai siswa yang belum melakukan absensi hari ini sebagai "telat"
-	loc, _ := time.LoadLocation("Asia/Jakarta")
-	now := time.Now().In(loc)
-	log.Println("[WA] Menandai siswa yang belum absen sebagai TELAT setelah QR Hadir berakhir...")
-
-	unattended, err := repo.GetUnattendedStudents(db)
-	if err != nil {
-		log.Printf("[WA] Gagal ambil siswa tanpa absen untuk di-set telat: %v", err)
-	} else if len(unattended) > 0 {
-		var logsAbsensi []models.AttedanceLogs
-		for _, s := range unattended {
-			logsAbsensi = append(logsAbsensi, models.AttedanceLogs{
-				UserID:      s.ID,
-				Status:      "telat",
-				ClockInTime: now,
-			})
-		}
-		if err := db.Create(&logsAbsensi).Error; err != nil {
-			log.Printf("[WA] Gagal set telat untuk siswa: %v", err)
-		} else {
-			log.Printf("[WA] Selesai menandai %d siswa sebagai TELAT.", len(unattended))
-		}
-	} else {
-		log.Println("[WA] Semua siswa sudah memiliki log absensi hari ini.")
 	}
 
 	// 2. Kirim notifikasi untuk siswa yang HADIR
@@ -326,42 +266,7 @@ func AutoAlfaAndNotify(db *gorm.DB) {
 	autoAlfaMutex.Lock()
 	defer autoAlfaMutex.Unlock()
 
-	// 1. Jalankan Auto-Alfa dulu
-	loc, _ := time.LoadLocation("Asia/Jakarta")
-	now := time.Now().In(loc)
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	end := start.Add(24 * time.Hour)
-
-	log.Println("[WA] Memulai proses Auto-Alfa...")
-	
-	// Cari log absensi hari ini yang berstatus 'telat' tapi tidak di-scan (TokenID IS NULL)
-	var unscannedLogs []models.AttedanceLogs
-	err := db.Where("status = ? AND token_id IS NULL AND clock_in_time >= ? AND clock_in_time < ?", "telat", start, end).
-		Find(&unscannedLogs).Error
-
-	if err != nil {
-		log.Printf("[WA] Gagal mengambil log telat unscanned: %v", err)
-	} else if len(unscannedLogs) > 0 {
-		var unscannedIDs []int64
-		for _, l := range unscannedLogs {
-			unscannedIDs = append(unscannedIDs, l.ID)
-		}
-		
-		// Update status mereka dari 'telat' menjadi 'alfa'
-		err = db.Model(&models.AttedanceLogs{}).
-			Where("id IN ?", unscannedIDs).
-			Update("status", StatusAlfa).Error
-
-		if err != nil {
-			log.Printf("[WA] Gagal mengubah status unscanned telat ke alfa: %v", err)
-		} else {
-			log.Printf("[WA] Auto-Alfa selesai: %d siswa diubah dari TELAT menjadi ALFA.", len(unscannedLogs))
-		}
-	} else {
-		log.Println("[WA] Auto-Alfa selesai: tidak ada siswa berstatus TELAT yang tidak di-scan.")
-	}
-
-	// 2. Lanjut ke proses pengiriman notifikasi WA
+	// Lanjut ke proses pengiriman notifikasi WA
 	settings, err := repo.GetNotificationSettingsMap(db)
 	if err != nil {
 		log.Printf("[WA] Gagal ambil settings: %v", err)
@@ -403,8 +308,5 @@ func AutoAlfaAndNotify(db *gorm.DB) {
 
 // TestSendWhatsApp — kirim pesan test ke nomor tertentu (buat debugging)
 func TestSendWhatsApp(phone, message string) (string, error) {
-	if WAClient == nil || !WAClient.IsConnected() {
-		return "", fmt.Errorf("WhatsApp client belum terhubung. Pastikan sudah melakukan pairing")
-	}
 	return SendWhatsAppMessage(phone, message)
 }

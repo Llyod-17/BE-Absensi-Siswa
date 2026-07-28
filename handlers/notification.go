@@ -275,13 +275,13 @@ func TriggerNotificationNow(c *fiber.Ctx) error {
 // @Success 200 {object} map[string]interface{}
 // @Security BearerAuth
 // @Router /notification/wa/status [get]
-func GetWAStatus(c *fiber.Ctx) error {
-	status := services.GetWAStatus()
-	return c.JSON(fiber.Map{
-		"message": "success",
-		"data":    status,
-	})
-}
+// func GetWAStatus(c *fiber.Ctx) error {
+// 	status := services.GetWAStatus()
+// 	return c.JSON(fiber.Map{
+// 		"message": "success",
+// 		"data":    status,
+// 	})
+// }
 
 // PairWA godoc
 // @Summary Request pairing code WhatsApp
@@ -295,18 +295,18 @@ func GetWAStatus(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /notification/wa/pair [post]
-func PairWA(c *fiber.Ctx) error {
-	qr, err := services.StartQRPairing()
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "QR Code berhasil digenerate",
-		"qr":      qr,
-		"status":  "pairing",
-	})
-}
+// func PairWA(c *fiber.Ctx) error {
+// 	qr, err := services.StartQRPairing()
+// 	if err != nil {
+// 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+// 	}
+//
+// 	return c.JSON(fiber.Map{
+// 		"message": "QR Code berhasil digenerate",
+// 		"qr":      qr,
+// 		"status":  "pairing",
+// 	})
+// }
 
 // LogoutWA godoc
 // @Summary Logout WhatsApp
@@ -317,15 +317,15 @@ func PairWA(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /notification/wa/logout [post]
-func LogoutWA(c *fiber.Ctx) error {
-	if err := services.LogoutWA(); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "WhatsApp berhasil logout. Silakan pair ulang.",
-	})
-}
+// func LogoutWA(c *fiber.Ctx) error {
+// 	if err := services.LogoutWA(); err != nil {
+// 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+// 	}
+//
+// 	return c.JSON(fiber.Map{
+// 		"message": "WhatsApp berhasil logout. Silakan pair ulang.",
+// 	})
+// }
 
 // GetStudentsAttendanceToday godoc
 // @Summary Ambil daftar semua siswa + status absensi hari ini
@@ -359,7 +359,7 @@ func GetStudentsAttendanceToday(c *fiber.Ctx) error {
 		FullName    string  `json:"full_name"`
 		ClassGroup  string  `json:"class_group"`
 		ParentPhone string  `json:"parent_phone"`
-		Status      *string `json:"status"`      // nil = belum absen
+		Status      *string `json:"status"`        // nil = belum absen
 		ClockInTime *string `json:"clock_in_time"` // nil = belum absen
 	}
 
@@ -412,12 +412,12 @@ func GetStudentsAttendanceToday(c *fiber.Ctx) error {
 
 	// Hitung summary dan format response
 	var (
-		totalSiswa  int
-		hadir       int
-		telat       int
-		alfa        int
-		sakit       int
-		belumAbsen  int
+		totalSiswa int
+		hadir      int
+		telat      int
+		alfa       int
+		sakit      int
+		belumAbsen int
 	)
 
 	type DeptStat struct {
