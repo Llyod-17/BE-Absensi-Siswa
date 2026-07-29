@@ -45,11 +45,7 @@ func StartTokenCleaner() {
 
 					// Jalankan di background goroutine agar tidak menyumbat loop utama cleaner
 					go func(t models.AttedanceTokens) {
-						if t.Category == "hadir" {
-							NotifyPresentStudents(database.DB)
-						} else if t.Category == "telat" {
-							AutoAlfaAndNotify(database.DB)
-						}
+						AutoAlfaAndNotify(database.DB)
 					}(token)
 				} else {
 					log.Printf("[WA-CLEANER] Token %s dari hari sebelumnya diabaikan (hanya ditandai processed).", token.TokenCode)
