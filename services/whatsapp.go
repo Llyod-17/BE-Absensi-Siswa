@@ -115,6 +115,12 @@ func BuildNotificationMessage(settings map[string]string, nama, nisn, kelas, sta
 				"Kami pihak sekolah mendoakan agar ananda lekas sembuh dan dapat kembali beraktivitas seperti biasa.",
 			nama,
 		)
+	case "izin":
+		body = fmt.Sprintf(
+			"Kami informasikan bahwa hari ini ananda *%s* tidak dapat mengikuti kegiatan belajar mengajar karena *IZIN*. "+
+				"Terima kasih atas informasi dan perhatian Bapak/Ibu.",
+			nama,
+		)
 	default:
 		body = fmt.Sprintf(
 			"Kami informasikan bahwa ananda *%s* hari ini tercatat dengan status *%s*.",
@@ -130,6 +136,13 @@ func BuildNotificationMessage(settings map[string]string, nama, nisn, kelas, sta
 // queueNotificationBatch — masukkan data notifikasi ke tabel antrean (notification_logs) dengan status "pending"
 func queueNotificationBatch(db *gorm.DB, settings map[string]string, targets []notifTarget, today string) (queued, skipped int) {
 	for _, t := range targets {
+		// status hadir tidak dikirim via WA (hanya selain hadir: telat, sakit, alfa, izin)
+		if strings.ToLower(t.Status) == "hadir" {
+			log.Printf("[WA] Skip %s (status: hadir) — notifikasi status hadir di-nonaktifkan.", t.FullName)
+			skipped++
+			continue
+		}
+
 		// spam guard: kalo status ini udah pernah dikirim hari ini atau sedang antre, skip aja
 		if repo.IsNotificationSentOrPendingToday(db, t.UserID, t.Status, today) {
 			log.Printf("[WA] Skip %s (status: %s) — udah dikirim atau sedang antre hari ini.", t.FullName, t.Status)
@@ -192,6 +205,15 @@ func StartNotificationSender(db *gorm.DB) {
 			log.Printf("[WA-SENDER] Memproses %d pesan pending...", len(pendingLogs))
 
 			for _, l := range pendingLogs {
+				// Abaikan jika ada log dengan status "hadir" (tidak dikirim via WA)
+				if strings.ToLower(l.Status) == "hadir" {
+					log.Printf("[WA-SENDER] Skip log ID %d — status 'hadir' diabaikan.", l.ID)
+					db.Model(&models.NotificationLogs{}).
+						Where("id = ?", l.ID).
+						Update("response_status", "skipped: status_hadir_ignored")
+					continue
+				}
+
 				log.Printf("[WA-SENDER] Mengirim pesan ke %s (log ID: %d)...", l.Phone, l.ID)
 				responseStatus, err := SendWhatsAppMessage(l.Phone, l.Message)
 
@@ -204,13 +226,18 @@ func StartNotificationSender(db *gorm.DB) {
 					log.Printf("[WA-SENDER] Sukses mengirim ke %s", l.Phone)
 				}
 
+				// Potong string jika lebih dari 250 karakter agar tidak terkena error Data too long di MySQL
+				if len(deliveryStatus) > 250 {
+					deliveryStatus = deliveryStatus[:250]
+				}
+
 				// Update status log di database
 				db.Model(&models.NotificationLogs{}).
 					Where("id = ?", l.ID).
 					Update("response_status", deliveryStatus)
 
-				// Delay 10 detik sesuai permintaan
-				time.Sleep(10 * time.Second)
+				// Delay rate limit 25 detik setelah setiap kali mengirim pesan
+				time.Sleep(25 * time.Second)
 			}
 
 			atomic.StoreInt32(&isSendingNotifications, 0)
@@ -218,50 +245,12 @@ func StartNotificationSender(db *gorm.DB) {
 	}()
 }
 
-// NotifyPresentStudents — kirim notif hanya untuk siswa yang sudah HADIR (dipanggil setelah QR 1 expired)
-// Serta menandai semua siswa yang BELUM melakukan absensi sebagai "telat".
+// NotifyPresentStudents — notifikasi WA untuk siswa HADIR di-nonaktifkan
 func NotifyPresentStudents(db *gorm.DB) {
-	settings, err := repo.GetNotificationSettingsMap(db)
-	if err != nil {
-		log.Printf("[WA] Gagal ambil settings: %v", err)
-		return
-	}
-
-	if settings["wa_enabled"] != "true" {
-		log.Println("[WA] Notifikasi WA lagi off.")
-		return
-	}
-
-	// 2. Kirim notifikasi untuk siswa yang HADIR
-	today := repo.TodayDateString()
-	var allTargets []notifTarget
-
-	// Tarik data siswa HADIR saja
-	hadirStudents, err := repo.GetStudentsByStatusToday(db, []string{"hadir"})
-	if err != nil {
-		log.Printf("[WA] Gagal ambil data HADIR: %v", err)
-	} else {
-		for _, s := range hadirStudents {
-			allTargets = append(allTargets, notifTarget{
-				UserID: s.ID, FullName: s.FullName, Nisn: s.Nisn,
-				ClassGroup: s.ClassGroup, ParentPhone: s.ParentPhone,
-				Status: "hadir",
-			})
-		}
-		log.Printf("[WA] HADIR: %d siswa.", len(hadirStudents))
-	}
-
-	if len(allTargets) == 0 {
-		log.Println("[WA] Ga ada siswa yg perlu dinotif hadir.")
-		return
-	}
-
-	log.Printf("[WA] Total %d siswa masuk antrian notif hadir.", len(allTargets))
-	queued, skipped := queueNotificationBatch(db, settings, allTargets, today)
-	log.Printf("[WA] Done (Hadir) — Dimasukkan ke antrean: %d | Skip: %d", queued, skipped)
+	log.Println("[WA] Notifikasi WA untuk status HADIR di-nonaktifkan (hanya mengirim notif selain hadir).")
 }
 
-// AutoAlfaAndNotify — set alfa untuk siswa tanpa log, lalu kirim notif telat/sakit/alfa (dipanggil setelah QR 2 expired)
+// AutoAlfaAndNotify — set alfa untuk siswa tanpa log, lalu kirim notif telat/sakit/izin/alfa (dipanggil setelah QR 2 expired)
 func AutoAlfaAndNotify(db *gorm.DB) {
 	autoAlfaMutex.Lock()
 	defer autoAlfaMutex.Unlock()
@@ -281,8 +270,8 @@ func AutoAlfaAndNotify(db *gorm.DB) {
 	today := repo.TodayDateString()
 	var allTargets []notifTarget
 
-	// Tarik data siswa ALFA, SAKIT, TELAT (semua kecuali hadir)
-	targetStudents, err := repo.GetStudentsByStatusToday(db, []string{StatusAlfa, StatusSakit, "telat"})
+	// Tarik data siswa ALFA, SAKIT, TELAT, IZIN (semua kecuali hadir)
+	targetStudents, err := repo.GetStudentsByStatusToday(db, []string{StatusAlfa, StatusSakit, "telat", "izin"})
 	if err != nil {
 		log.Printf("[WA] Gagal ambil data target notif: %v", err)
 	} else {
@@ -297,11 +286,11 @@ func AutoAlfaAndNotify(db *gorm.DB) {
 	}
 
 	if len(allTargets) == 0 {
-		log.Println("[WA] Ga ada siswa yg perlu dinotif telat/alfa/sakit.")
+		log.Println("[WA] Ga ada siswa yg perlu dinotif telat/alfa/sakit/izin.")
 		return
 	}
 
-	log.Printf("[WA] Total %d siswa masuk antrian notif telat/alfa/sakit.", len(allTargets))
+	log.Printf("[WA] Total %d siswa masuk antrian notif telat/alfa/sakit/izin.", len(allTargets))
 	queued, skipped := queueNotificationBatch(db, settings, allTargets, today)
 	log.Printf("[WA] Done (Lainnya) — Dimasukkan ke antrean: %d | Skip: %d", queued, skipped)
 }

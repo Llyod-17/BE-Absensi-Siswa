@@ -10,7 +10,7 @@ type NotificationLogs struct {
 	Message        string    `gorm:"type:text" json:"message"`
 	SentDate       string    `gorm:"type:date;not null" json:"sent_date"`
 	SentAt         time.Time `gorm:"autoCreateTime" json:"sent_at"`
-	ResponseStatus string    `gorm:"type:varchar(50)" json:"response_status"`
+	ResponseStatus string    `gorm:"type:varchar(255)" json:"response_status"`
 
 	User Users `gorm:"foreignKey:UserID;references:ID" json:"user,omitempty"`
 }
