@@ -237,7 +237,7 @@ func StartNotificationSender(db *gorm.DB) {
 					Update("response_status", deliveryStatus)
 
 				// Delay rate limit 25 detik setelah setiap kali mengirim pesan
-				time.Sleep(25 * time.Second)
+				time.Sleep(30 * time.Second)
 			}
 
 			atomic.StoreInt32(&isSendingNotifications, 0)
