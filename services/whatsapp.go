@@ -70,12 +70,18 @@ func BuildNotificationMessage(settings map[string]string, nama, nisn, kelas, sta
 	}
 
 	if template != "" {
+		// Format display status agar ramah dibaca
+		displayStatus := strings.ToUpper(status)
+		if strings.ToLower(status) == "belum_absen" || strings.ToLower(status) == "belum" {
+			displayStatus = "BELUM ABSEN"
+		}
+
 		// Replace placeholders: {nama}, {nisn}, {kelas}, {status}, {nama_sekolah}
 		r := strings.NewReplacer(
 			"{nama}", nama,
 			"{nisn}", nisn,
 			"{kelas}", kelas,
-			"{status}", strings.ToUpper(status),
+			"{status}", displayStatus,
 			"{nama_sekolah}", schoolName,
 		)
 		return r.Replace(template)
@@ -105,7 +111,13 @@ func BuildNotificationMessage(settings map[string]string, nama, nisn, kelas, sta
 		)
 	case StatusAlfa:
 		body = fmt.Sprintf(
-			"Kami informasikan bahwa ananda *%s* hari ini terpantau *BELUM MELAKUKAN ABSENSI (ALFA)*. "+
+			"Kami informasikan bahwa ananda *%s* hari ini terpantau *ALFA*. "+
+				"Mohon Bapak/Ibu dapat mengonfirmasi kehadiran putra/putri Anda.",
+			nama,
+		)
+	case "belum_absen", "belum":
+		body = fmt.Sprintf(
+			"Kami informasikan bahwa ananda *%s* hari ini *BELUM MELAKUKAN ABSENSI*. "+
 				"Mohon Bapak/Ibu dapat mengonfirmasi kehadiran putra/putri Anda.",
 			nama,
 		)
@@ -136,7 +148,7 @@ func BuildNotificationMessage(settings map[string]string, nama, nisn, kelas, sta
 // queueNotificationBatch — masukkan data notifikasi ke tabel antrean (notification_logs) dengan status "pending"
 func queueNotificationBatch(db *gorm.DB, settings map[string]string, targets []notifTarget, today string) (queued, skipped int) {
 	for _, t := range targets {
-		// status hadir tidak dikirim via WA (hanya selain hadir: telat, sakit, alfa, izin)
+		// status hadir tidak dikirim via WA (hanya selain hadir: telat, sakit, alfa, izin, belum_absen)
 		if strings.ToLower(t.Status) == "hadir" {
 			log.Printf("[WA] Skip %s (status: hadir) — notifikasi status hadir di-nonaktifkan.", t.FullName)
 			skipped++
@@ -236,7 +248,7 @@ func StartNotificationSender(db *gorm.DB) {
 					Where("id = ?", l.ID).
 					Update("response_status", deliveryStatus)
 
-				// Delay rate limit 25 detik setelah setiap kali mengirim pesan
+				// Delay rate limit 30 detik setelah setiap kali mengirim pesan
 				time.Sleep(30 * time.Second)
 			}
 
@@ -250,7 +262,7 @@ func NotifyPresentStudents(db *gorm.DB) {
 	log.Println("[WA] Notifikasi WA untuk status HADIR di-nonaktifkan (hanya mengirim notif selain hadir).")
 }
 
-// AutoAlfaAndNotify — set alfa untuk siswa tanpa log, lalu kirim notif telat/sakit/izin/alfa (dipanggil setelah QR 2 expired)
+// AutoAlfaAndNotify — kirim notifikasi WA untuk siswa belum absen (status: belum_absen) dan telat/sakit/izin/alfa
 func AutoAlfaAndNotify(db *gorm.DB) {
 	autoAlfaMutex.Lock()
 	defer autoAlfaMutex.Unlock()
@@ -270,29 +282,50 @@ func AutoAlfaAndNotify(db *gorm.DB) {
 	today := repo.TodayDateString()
 	var allTargets []notifTarget
 
-	// Tarik data siswa ALFA, SAKIT, TELAT, IZIN (semua kecuali hadir)
+	// 1. Tarik siswa yang BELUM ABSEN (tidak memiliki log di attedance_logs hari ini)
+	unattendedStudents, err := repo.GetUnattendedStudents(db)
+	if err != nil {
+		log.Printf("[WA] Gagal ambil data siswa belum absen: %v", err)
+	} else {
+		for _, s := range unattendedStudents {
+			allTargets = append(allTargets, notifTarget{
+				UserID:      s.ID,
+				FullName:    s.FullName,
+				Nisn:        s.Nisn,
+				ClassGroup:  s.ClassGroup,
+				ParentPhone: s.ParentPhone,
+				Status:      "belum_absen",
+			})
+		}
+		log.Printf("[WA] Target Notif (Belum Absen): %d siswa.", len(unattendedStudents))
+	}
+
+	// 2. Tarik data siswa yang SUDAH ABSEN dengan status ALFA, SAKIT, TELAT, IZIN (semua kecuali HADIR)
 	targetStudents, err := repo.GetStudentsByStatusToday(db, []string{StatusAlfa, StatusSakit, "telat", "izin"})
 	if err != nil {
 		log.Printf("[WA] Gagal ambil data target notif: %v", err)
 	} else {
 		for _, s := range targetStudents {
 			allTargets = append(allTargets, notifTarget{
-				UserID: s.ID, FullName: s.FullName, Nisn: s.Nisn,
-				ClassGroup: s.ClassGroup, ParentPhone: s.ParentPhone,
-				Status: s.Status,
+				UserID:      s.ID,
+				FullName:    s.FullName,
+				Nisn:        s.Nisn,
+				ClassGroup:  s.ClassGroup,
+				ParentPhone: s.ParentPhone,
+				Status:      s.Status,
 			})
 		}
-		log.Printf("[WA] Target Notif (Selain Hadir): %d siswa.", len(targetStudents))
+		log.Printf("[WA] Target Notif (Sudah Absen Selain Hadir): %d siswa.", len(targetStudents))
 	}
 
 	if len(allTargets) == 0 {
-		log.Println("[WA] Ga ada siswa yg perlu dinotif telat/alfa/sakit/izin.")
+		log.Println("[WA] Ga ada siswa yg perlu dinotif (semua hadir atau tidak ada data).")
 		return
 	}
 
-	log.Printf("[WA] Total %d siswa masuk antrian notif telat/alfa/sakit/izin.", len(allTargets))
+	log.Printf("[WA] Total %d siswa masuk antrian notif telat/alfa/sakit/izin/belum_absen.", len(allTargets))
 	queued, skipped := queueNotificationBatch(db, settings, allTargets, today)
-	log.Printf("[WA] Done (Lainnya) — Dimasukkan ke antrean: %d | Skip: %d", queued, skipped)
+	log.Printf("[WA] Done — Dimasukkan ke antrean: %d | Skip: %d", queued, skipped)
 }
 
 // TestSendWhatsApp — kirim pesan test ke nomor tertentu (buat debugging)
