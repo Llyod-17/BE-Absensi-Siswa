@@ -1,0 +1,681 @@
+{
+	"info": {
+		"name": "BE-Absensi-Siswa",
+		"description": "API Absensi Siswa - SMK",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "opencode"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nisn\": \"1234567890\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('token', jsonData.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Me (Profile)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nisn\": \"1234567890\",\n  \"full_name\": \"John Doe\",\n  \"username\": \"johndoe\",\n  \"password\": \"password123\",\n  \"role\": \"siswa\",\n  \"class_group\": \"X-RPL-1\",\n  \"parent_phone\": \"628123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/users?page=1&limit=20&role=siswa&class_group=X-RPL-1&search=john",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "role", "value": "siswa" },
+								{ "key": "class_group", "value": "X-RPL-1" },
+								{ "key": "search", "value": "john" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get User By ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nisn\": \"1234567890\",\n  \"full_name\": \"John Doe\",\n  \"username\": \"johndoe\",\n  \"password\": \"password123\",\n  \"role\": \"siswa\",\n  \"class_group\": \"X-RPL-1\",\n  \"parent_phone\": \"628123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nisn\": \"1234567890\",\n  \"full_name\": \"John Updated\",\n  \"username\": \"johnupdated\",\n  \"role\": \"siswa\",\n  \"class_group\": \"X-RPL-2\",\n  \"parent_phone\": \"628123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"new_password\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/1/reset-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "1", "reset-password"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Token / QR",
+			"item": [
+				{
+					"name": "Get Tokens (Paginated)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/token?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Token (Custom)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"duration\": 30,\n  \"category\": \"hadir\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/create",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "create"]
+						}
+					}
+				},
+				{
+					"name": "Create Token Hadir (Quick)",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/create/hadir",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "create", "hadir"]
+						}
+					}
+				},
+				{
+					"name": "Create Token Telat (Quick)",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/create/telat",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "create", "telat"]
+						}
+					}
+				},
+				{
+					"name": "Submit Absen (Siswa)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token_code\": \"ABC123\",\n  \"latitude\": -6.467184,\n  \"longitude\": 106.864661\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/absen",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "absen"]
+						}
+					}
+				},
+				{
+					"name": "Get Active QR Codes",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/qr_code/active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "qr_code", "active"]
+						}
+					}
+				},
+				{
+					"name": "Get QR Image",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/1/image",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "1", "image"]
+						}
+					}
+				},
+				{
+					"name": "Update Token Date",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2026-07-31\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/token/1/update",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "token", "1", "update"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Attendance / Logs",
+			"item": [
+				{
+					"name": "My Attendance Logs (Siswa)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/logs?page=1&limit=10&search=hadir",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "logs"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" },
+								{ "key": "search", "value": "hadir" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Attendance Students Today",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/attendance/students?class_group=X-RPL-1&status=alfa&angkatan=Kelas%20X&jurusan=RPL",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "attendance", "students"],
+							"query": [
+								{ "key": "class_group", "value": "X-RPL-1" },
+								{ "key": "status", "value": "alfa" },
+								{ "key": "angkatan", "value": "Kelas X" },
+								{ "key": "jurusan", "value": "RPL" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Student Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": 1,\n  \"status\": \"sakit\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/attendance/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "attendance", "status"]
+						}
+					}
+				},
+				{
+					"name": "Attendance Logs (Admin)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/attendance/logs?page=1&limit=20&start_date=2026-07-01&end_date=2026-07-30&class_group=X-RPL-1&status=hadir&search=john",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "attendance", "logs"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "20" },
+								{ "key": "start_date", "value": "2026-07-01" },
+								{ "key": "end_date", "value": "2026-07-30" },
+								{ "key": "class_group", "value": "X-RPL-1" },
+								{ "key": "status", "value": "hadir" },
+								{ "key": "search", "value": "john" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Top Alfa Students",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/attendance/top-alfa",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "attendance", "top-alfa"]
+						}
+					}
+				},
+				{
+					"name": "Monthly Recap",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/attendance/monthly-recap?year=2025/2026",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "attendance", "monthly-recap"],
+							"query": [
+								{ "key": "year", "value": "2025/2026" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Dashboard Stats",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "dashboard"]
+						}
+					}
+				},
+				{
+					"name": "Trend 7 Hari",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/dashboard/trend",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "dashboard", "trend"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Export & Import",
+			"item": [
+				{
+					"name": "Export Attendance (Excel)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/export/attendance?kelas=X-RPL-1&jurusan=RPL&start_date=2026-07-01&end_date=2026-07-30",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "export", "attendance"],
+							"query": [
+								{ "key": "kelas", "value": "X-RPL-1" },
+								{ "key": "jurusan", "value": "RPL" },
+								{ "key": "start_date", "value": "2026-07-01" },
+								{ "key": "end_date", "value": "2026-07-30" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Import Users (Excel)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": ""
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/import/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "import", "users"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Classes",
+			"item": [
+				{
+					"name": "Get All Classes",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "classes"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Notification Settings",
+			"item": [
+				{
+					"name": "Get Settings",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notification/settings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notification", "settings"]
+						}
+					}
+				},
+				{
+					"name": "Update Settings (Bulk)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"settings\": [\n    {\n      \"setting_key\": \"wa_enabled\",\n      \"setting_value\": \"true\"\n    },\n    {\n      \"setting_key\": \"school_name\",\n      \"setting_value\": \"SMK Negeri 1\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/notification/settings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notification", "settings"]
+						}
+					}
+				},
+				{
+					"name": "Test WhatsApp",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"628123456789\",\n  \"message\": \"Test pesan dari sistem\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/notification/test",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notification", "test"]
+						}
+					}
+				},
+				{
+					"name": "Get Notification Logs",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notification/logs?date=2026-07-30",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notification", "logs"],
+							"query": [
+								{ "key": "date", "value": "2026-07-30" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Trigger Auto-Alfa",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notification/trigger",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notification", "trigger"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin Notifications (In-App)",
+			"item": [
+				{
+					"name": "Get Unread Notifications",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notifications"]
+						}
+					}
+				},
+				{
+					"name": "Mark as Read",
+					"request": {
+						"method": "PUT",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications/read/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notifications", "read", "1"]
+						}
+					}
+				},
+				{
+					"name": "Mark All as Read",
+					"request": {
+						"method": "PUT",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications/read-all",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notifications", "read-all"]
+						}
+					}
+				},
+				{
+					"name": "Delete Selected Notifications",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ids\": [1, 2, 3]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications/bulk",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notifications", "bulk"]
+						}
+					}
+				},
+				{
+					"name": "Delete All Notifications",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications/all",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "notifications", "all"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
