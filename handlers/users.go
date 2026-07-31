@@ -297,7 +297,7 @@ func DeleteUser(c *fiber.Ctx) error {
 	}
 
 	if err := database.DB.Delete(&user).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "gagal menghapus pengguna"})
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(fiber.Map{
