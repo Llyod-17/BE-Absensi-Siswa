@@ -30,6 +30,7 @@ func GetUsers(c *fiber.Ctx) error {
 	role := c.Query("role")
 	classGroup := c.Query("class_group")
 	search := c.Query("search")
+	status := c.Query("status")
 
 	if page < 1 {
 		page = 1
@@ -50,6 +51,9 @@ func GetUsers(c *fiber.Ctx) error {
 	}
 	if search != "" {
 		query = query.Where("full_name LIKE ? OR nisn LIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
 	}
 
 	var total int64
