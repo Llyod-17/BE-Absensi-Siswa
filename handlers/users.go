@@ -141,8 +141,12 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "password wajib diisi"})
 	}
 
-	if  req.Nisn == "" {
+	if req.Nisn == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "NISN wajib diisi untuk siswa"})
+	}
+
+	if req.FullName == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "fullname wajib iisi"})
 	}
 
 	// Validasi unique username
@@ -170,6 +174,7 @@ func CreateUser(c *fiber.Ctx) error {
 		Username:    req.Username,
 		Password:    string(hashedPassword),
 		Role:        req.Role,
+		Status:      req.Status,
 		ClassGroup:  req.ClassGroup,
 		ParentPhone: req.ParentPhone,
 	}
@@ -245,6 +250,7 @@ func UpdateUser(c *fiber.Ctx) error {
 	user.FullName = req.FullName
 	user.Username = req.Username
 	user.Role = req.Role
+	user.Status = req.Status
 	user.ClassGroup = req.ClassGroup
 	user.ParentPhone = req.ParentPhone
 

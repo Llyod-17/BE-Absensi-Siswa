@@ -10,6 +10,7 @@ type Users struct {
 	Role        string `gorm:"type:enum('siswa','guru','admin','superadmin');default:'siswa'"`
 	ClassGroup  string `gorm:"type:varchar(20)"`
 	ParentPhone string `gorm:"column:parent_phone;type:varchar(20)" json:"parent_phone"`
+	Status 			string `gorm:"type:enum('PKL', 'AKTIF', 'NONAKTIF')";default:'AKTIF'`
 
 	AttedanceTokens []AttedanceTokens `gorm:"foreignKey:CreatedBy"`
 	AttedanceLogs   []AttedanceLogs   `gorm:"foreignKey:UserID"`

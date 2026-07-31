@@ -7,12 +7,13 @@ import (
 
 func ToUserResponse(u models.Users) responses.UserRes {
 	return responses.UserRes{
-		ID: u.ID,
-		Nisn: u.Nisn,
-		FullName: u.FullName,
-		Username: u.Username,
-		Role: u.Role,
-		ClassGroup: u.ClassGroup,
+		ID:          u.ID,
+		Nisn:        u.Nisn,
+		FullName:    u.FullName,
+		Username:    u.Username,
+		Role:        u.Role,
+		Status:      u.Status,
+		ClassGroup:  u.ClassGroup,
 		ParentPhone: u.ParentPhone,
 	}
 }
