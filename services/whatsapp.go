@@ -34,20 +34,29 @@ type notifTarget struct {
 	Status      string
 }
 
-// NormalizePhone — konversi nomor HP ke format JID WhatsApp (628xxx)
-// Menghapus semua karakter non-angka (spasi, strip, kurung, dll)
-// lalu mengkonversi awalan 08/+62 ke 62.
+// NormalizePhone — konversi nomor HP ke format internasional (+628xxx).
+// Menghapus semua karakter non-angka (spasi, strip, kurung, dll) lalu
+// mengkonversi semua variasi awalan ke +62:
+//   0895345570902 -> +62895345570902
+//   895345570902  -> +62895345570902
+//   +62 895...    -> +62895345570902
+//   62895...      -> +62895345570902
 func NormalizePhone(phone string) string {
 	phone = strings.TrimSpace(phone)
 	// Hapus semua karakter non-digit
 	re := regexp.MustCompile(`[^0-9]`)
 	phone = re.ReplaceAllString(phone, "")
-	if strings.HasPrefix(phone, "08") {
-		return "62" + phone[1:]
-	}
-	// Jika dimulai dengan 62 (dari +62 yang sudah di-strip), langsung return
-	if strings.HasPrefix(phone, "62") {
-		return phone
+
+	switch {
+	case strings.HasPrefix(phone, "0"):
+		// 08xxx / 089xxx -> 628xxx
+		return "+62" + phone[1:]
+	case strings.HasPrefix(phone, "62"):
+		// 628xxx (dari +62 yang sudah di-strip) -> +628xxx
+		return "+" + phone
+	case strings.HasPrefix(phone, "8"):
+		// 812xxx tanpa leading 0 -> +62812xxx
+		return "+62" + phone
 	}
 	return phone
 }
@@ -145,48 +154,6 @@ func BuildNotificationMessage(settings map[string]string, nama, nisn, kelas, sta
 	return header + body + footer
 }
 
-// queueNotificationBatch — masukkan data notifikasi ke tabel antrean (notification_logs) dengan status "pending"
-func queueNotificationBatch(db *gorm.DB, settings map[string]string, targets []notifTarget, today string) (queued, skipped int) {
-	for _, t := range targets {
-		// status hadir tidak dikirim via WA (hanya selain hadir: telat, sakit, alfa, izin, belum_absen)
-		if strings.ToLower(t.Status) == "hadir" {
-			log.Printf("[WA] Skip %s (status: hadir) — notifikasi status hadir di-nonaktifkan.", t.FullName)
-			skipped++
-			continue
-		}
-
-		// spam guard: kalo status ini udah pernah dikirim hari ini atau sedang antre, skip aja
-		if repo.IsNotificationSentOrPendingToday(db, t.UserID, t.Status, today) {
-			log.Printf("[WA] Skip %s (status: %s) — udah dikirim atau sedang antre hari ini.", t.FullName, t.Status)
-			skipped++
-			continue
-		}
-
-		// ga ada nomor ortu? ya skip juga dong
-		if t.ParentPhone == "" {
-			log.Printf("[WA] Skip %s — nomor ortu kosong.", t.FullName)
-			skipped++
-			continue
-		}
-
-		// bangun pesan sesuai status
-		message := BuildNotificationMessage(settings, t.FullName, t.Nisn, t.ClassGroup, t.Status)
-
-		// catat ke tabel notification_logs dengan status "pending"
-		db.Create(&models.NotificationLogs{
-			UserID:         t.UserID,
-			Phone:          NormalizePhone(t.ParentPhone),
-			Status:         t.Status,
-			Message:        message,
-			SentDate:       today,
-			ResponseStatus: "pending",
-		})
-		queued++
-	}
-
-	return queued, skipped
-}
-
 // StartNotificationSender — background worker untuk memproses antrean pesan WA (pending)
 func StartNotificationSender(db *gorm.DB) {
 	go func() {
@@ -210,6 +177,13 @@ func StartNotificationSender(db *gorm.DB) {
 			}
 
 			if len(pendingLogs) == 0 {
+				atomic.StoreInt32(&isSendingNotifications, 0)
+				continue
+			}
+
+			// Pastikan session WAHA WORKING sebelum mulai kirim (auto-restart jika mati)
+			if err := EnsureWASessionWorking(); err != nil {
+				log.Printf("[WA-SENDER] Session WAHA bermasalah: %v — antrean ditunda.", err)
 				atomic.StoreInt32(&isSendingNotifications, 0)
 				continue
 			}
@@ -238,9 +212,11 @@ func StartNotificationSender(db *gorm.DB) {
 					log.Printf("[WA-SENDER] Sukses mengirim ke %s", l.Phone)
 				}
 
-				// Potong string jika lebih dari 250 karakter agar tidak terkena error Data too long di MySQL
-				if len(deliveryStatus) > 250 {
-					deliveryStatus = deliveryStatus[:250]
+				// Potong string jika lebih dari 250 karakter (hitung per rune,
+				// bukan byte, agar karakter UTF-8 tidak terpotong di tengah)
+				// agar tidak terkena error Data too long di MySQL.
+				if len([]rune(deliveryStatus)) > 250 {
+					deliveryStatus = string([]rune(deliveryStatus)[:250])
 				}
 
 				// Update status log di database
@@ -262,12 +238,71 @@ func NotifyPresentStudents(db *gorm.DB) {
 	log.Println("[WA] Notifikasi WA untuk status HADIR di-nonaktifkan (hanya mengirim notif selain hadir).")
 }
 
-// AutoAlfaAndNotify — kirim notifikasi WA untuk siswa belum absen (status: belum_absen) dan telat/sakit/izin/alfa
-func AutoAlfaAndNotify(db *gorm.DB) {
+// queueNotificationBatch — masukkan data notifikasi ke tabel antrean (notification_logs) dengan status "pending"
+func queueNotificationBatch(db *gorm.DB, settings map[string]string, targets []notifTarget, today string) (queued, skipped int) {
+	for _, t := range targets {
+		// status hadir tidak dikirim via WA (hanya selain hadir: telat, sakit, alfa, izin, belum_absen)
+		if strings.ToLower(t.Status) == "hadir" {
+			log.Printf("[WA] Skip %s (status: hadir) — notifikasi status hadir di-nonaktifkan.", t.FullName)
+			skipped++
+			continue
+		}
+
+		// spam guard: kalo status ini udah pernah dikirim hari ini atau sedang antre, skip aja
+		if repo.IsNotificationSentOrPendingToday(db, t.UserID, t.Status, today) {
+			log.Printf("[WA] Skip %s (status: %s) — udah dikirim atau sedang antre hari ini.", t.FullName, t.Status)
+			skipped++
+			continue
+		}
+
+		// retry: jika ada row failed hari ini untuk user ini, reset ke pending (unique index user_id+status+sent_date
+		// mencegah insert baru, jadi row lama yang failed dihidupkan kembali)
+		res := db.Model(&models.NotificationLogs{}).
+			Where("user_id = ? AND status = ? AND sent_date = ? AND response_status LIKE ?",
+				t.UserID, t.Status, today, "failed%").
+			Update("response_status", "pending")
+		if res.RowsAffected > 0 {
+			log.Printf("[WA] Retry %s (status: %s) — row failed direset ke pending.", t.FullName, t.Status)
+			queued++
+			continue
+		}
+
+		// ga ada nomor ortu? ya skip juga dong
+		if t.ParentPhone == "" {
+			log.Printf("[WA] Skip %s — nomor ortu kosong.", t.FullName)
+			skipped++
+			continue
+		}
+
+		// bangun pesan sesuai status
+		message := BuildNotificationMessage(settings, t.FullName, t.Nisn, t.ClassGroup, t.Status)
+
+		// catat ke tabel notification_logs dengan status "pending"
+		entry := models.NotificationLogs{
+			UserID:         t.UserID,
+			Phone:          NormalizePhone(t.ParentPhone),
+			Status:         t.Status,
+			Message:        message,
+			SentDate:       today,
+			ResponseStatus: "pending",
+		}
+		if err := db.Create(&entry).Error; err != nil {
+			log.Printf("[WA] Skip %s — gagal masuk antrean: %v", t.FullName, err)
+			skipped++
+			continue
+		}
+		queued++
+	}
+
+	return queued, skipped
+}
+
+// SendDailyWANotifications — kirim notifikasi WA harian untuk siswa dengan status selain HADIR.
+// Dijalankan otomatis oleh cron setiap jam 08:30 WIB.
+func SendDailyWANotifications(db *gorm.DB) {
 	autoAlfaMutex.Lock()
 	defer autoAlfaMutex.Unlock()
 
-	// Lanjut ke proses pengiriman notifikasi WA
 	settings, err := repo.GetNotificationSettingsMap(db)
 	if err != nil {
 		log.Printf("[WA] Gagal ambil settings: %v", err)

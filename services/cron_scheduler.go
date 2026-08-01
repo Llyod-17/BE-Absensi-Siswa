@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/KicauOrgspark/BE-Absensi-Siswa/config"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/database"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/models"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/repo"
@@ -21,6 +22,18 @@ func InitCronScheduler() {
 
 	c := cron.New(cron.WithLocation(loc))
 
+	// Jadwalkan notifikasi WA harian (default 08:30 WIB, bisa diubah via WA_SEND_CRON)
+	waCron := "30 8 * * *"
+	if config.AppConfig.WASendCron != "" {
+		waCron = config.AppConfig.WASendCron
+	}
+	_, err = c.AddFunc(waCron, runDailyWANotification)
+	if err != nil {
+		log.Printf("[CRON] Gagal menjadwalkan Notifikasi WA Harian: %v", err)
+		return
+	}
+	log.Printf("[CRON] Notifikasi WA Harian dijadwalkan pada: %s (WIB)", waCron)
+
 	// Jadwalkan Rekap Harian jam 15:00 setiap hari
 	_, err = c.AddFunc("0 15 * * *", runDailyRecap)
 	if err != nil {
@@ -30,6 +43,15 @@ func InitCronScheduler() {
 
 	c.Start()
 	log.Println("[CRON] Scheduler berhasil dijalankan.")
+}
+
+func runDailyWANotification() {
+	waCron := "30 8 * * *"
+	if config.AppConfig.WASendCron != "" {
+		waCron = config.AppConfig.WASendCron
+	}
+	log.Printf("[CRON] Memulai pengiriman notifikasi WA harian (jadwal: %s WIB)...", waCron)
+	SendDailyWANotifications(database.DB)
 }
 
 func runDailyRecap() {

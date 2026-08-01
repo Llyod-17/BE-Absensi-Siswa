@@ -251,22 +251,6 @@ func UpdateStudentStatus(c *fiber.Ctx) error {
 	})
 }
 
-// TriggerNotificationNow godoc
-// @Summary Trigger notifikasi WA sekarang
-// @Description Jalankan pengecekan dan pengiriman WA secara manual (tanpa menunggu cron)
-// @Tags notification
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Security BearerAuth
-// @Router /notification/trigger [post]
-func TriggerNotificationNow(c *fiber.Ctx) error {
-	go services.AutoAlfaAndNotify(database.DB)
-
-	return c.JSON(fiber.Map{
-		"message": "Proses Auto-Alfa dan notifikasi WA sedang berjalan di background",
-	})
-}
-
 // GetWAStatus godoc
 // @Summary Cek status koneksi WhatsApp
 // @Description Mengambil status koneksi WhatsApp (connected/disconnected/waiting_pair)

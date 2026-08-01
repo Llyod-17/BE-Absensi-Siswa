@@ -1,0 +1,17 @@
+2026/08/01 20:57:09 [WAHA] Berhasil terhubung ke WAHA API.
+2026/08/01 20:57:09 skip duplicate: admin
+2026/08/01 20:57:09 [Seeder] notification_settings sudah terisi, skip seeding.
+2026/08/01 20:57:09 [CRON] Notifikasi WA Harian dijadwalkan pada: 0 21 * * * (WIB)
+2026/08/01 20:57:09 [CRON] Scheduler berhasil dijalankan.
+2026/08/01 20:57:09 [CLEANUP] Scheduler data cleanup aktif (03:00 WIB).
+2026/08/01 20:57:09 Server berjalan di port :3000
+2026/08/01 21:00:00 [CRON] Memulai pengiriman notifikasi WA harian (08:30 WIB)...
+2026/08/01 21:00:00 [WA] Target Notif (Belum Absen): 1 siswa.
+2026/08/01 21:00:00 [WA] Target Notif (Sudah Absen Selain Hadir): 1 siswa.
+2026/08/01 21:00:00 [WA] Total 2 siswa masuk antrian notif telat/alfa/sakit/izin/belum_absen.
+2026/08/01 21:00:00 [WA] Done — Dimasukkan ke antrean: 2 | Skip: 0
+2026/08/01 21:00:09 [WA-SENDER] Memproses 2 pesan pending...
+2026/08/01 21:00:09 [WA-SENDER] Mengirim pesan ke 62895345570902 (log ID: 5)...
+2026/08/01 21:00:09 [WA-SENDER] Sukses mengirim ke 62895345570902
+2026/08/01 21:00:39 [WA-SENDER] Mengirim pesan ke 62895345570902 (log ID: 6)...
+2026/08/01 21:00:39 [WA-SENDER] Sukses mengirim ke 62895345570902

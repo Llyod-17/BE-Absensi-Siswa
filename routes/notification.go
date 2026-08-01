@@ -19,9 +19,6 @@ func SetupNotificationRoutes(api fiber.Router) {
 	// Log notifikasi — hanya admin/superadmin
 	notif.Get("/logs", middleware.AdminOnly, handlers.GetNotificationLogs)
 
-	// Trigger manual — hanya admin/superadmin
-	notif.Post("/trigger", middleware.AdminOnly, handlers.TriggerNotificationNow)
-
 	// WhatsApp management — hanya admin/superadmin
 	// wa := notif.Group("/wa")
 	// wa.Get("/status", middleware.AdminOnly, handlers.GetWAStatus)

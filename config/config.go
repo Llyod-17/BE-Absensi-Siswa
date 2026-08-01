@@ -20,6 +20,7 @@ type Config struct {
 	WAHASession string
 	WAHASwaggerUsername string
 	WAHASwaggerPassword string
+	WASendCron string
 }
 
 //variable dari struct
@@ -45,5 +46,6 @@ func LoadEnv() {
 		WAHASession: os.Getenv("WAHA_SESSION"),
 		WAHASwaggerUsername: os.Getenv("WHATSAPP_SWAGGER_USERNAME"),
 		WAHASwaggerPassword: os.Getenv("WHATSAPP_SWAGGER_PASSWORD"),
+		WASendCron: os.Getenv("WA_SEND_CRON"),
 	}
 }

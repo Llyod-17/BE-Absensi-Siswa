@@ -42,6 +42,7 @@ func GetUnattendedStudents(db *gorm.DB) ([]UnattendedStudent, error) {
 			WHERE clock_in_time >= ? AND clock_in_time < ?
 		) l ON l.user_id = u.id`, start, end).
 		Where("u.role = ?", "siswa").
+		Where("u.status = ?", "AKTIF").
 		Where("l.id IS NULL").
 		Order("u.class_group ASC, u.full_name ASC").
 		Scan(&students).Error
@@ -49,7 +50,7 @@ func GetUnattendedStudents(db *gorm.DB) ([]UnattendedStudent, error) {
 	return students, err
 }
 
-// GetStudentsByStatusToday — ambil siswa yg punya status tertentu (sakit/izin) hari ini
+// GetStudentsByStatusToday — ambil siswa yg punya status tertentu hari ini
 func GetStudentsByStatusToday(db *gorm.DB, statuses []string) ([]AbsentStudentWithStatus, error) {
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	now := time.Now().In(loc)
@@ -68,6 +69,7 @@ func GetStudentsByStatusToday(db *gorm.DB, statuses []string) ([]AbsentStudentWi
 			AND status IN ?
 		) l ON l.user_id = u.id`, start, end, statuses).
 		Where("u.role = ?", "siswa").
+		Where("u.status = ?", "AKTIF").
 		Order("u.class_group ASC, u.full_name ASC").
 		Scan(&students).Error
 
@@ -86,17 +88,6 @@ func GetNotificationSettingsMap(db *gorm.DB) (map[string]string, error) {
 		result[s.SettingKey] = s.SettingValue
 	}
 	return result, nil
-}
-
-// IsNotificationSentToday — cek udah pernah kirim notif buat user+status ini hari ini belum
-// cuma ngitung yg success, jadi kalo kemarin failed bisa retry
-func IsNotificationSentToday(db *gorm.DB, userID int64, status string, today string) bool {
-	var count int64
-	db.Model(&models.NotificationLogs{}).
-		Where("user_id = ? AND status = ? AND sent_date = ? AND response_status LIKE ?",
-			userID, status, today, "success%").
-		Count(&count)
-	return count > 0
 }
 
 // IsNotificationSentOrPendingToday — cek udah pernah kirim (success) atau sedang antre (pending) notif buat user+status ini hari ini

@@ -33,6 +33,11 @@ func main() {
 	//connect to database
 	database.ConnectDB()
 
+	// Migrasi: hapus unique index lama (user_id, sent_date) yang menghalangi
+	// notifikasi status berbeda (alfa/sakit/telat) di hari yang sama.
+	// AutoMigrate akan membuat index baru (user_id, status, sent_date).
+	_ = database.DB.Migrator().DropIndex(&models.NotificationLogs{}, "unique_daily_notif")
+
 	database.DB.AutoMigrate(
 		&models.Users{},
 		&models.AttedanceTokens{},
@@ -63,6 +68,9 @@ func main() {
 	//start cron scheduler
 	services.InitCronScheduler()
 
+	//start data cleanup scheduler (03:00 WIB)
+	services.InitDataCleanup()
+
 	app := fiber.New()
 
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
@@ -75,8 +83,10 @@ func main() {
 
 	routes.SetupRoutes(app)
 
-	// Cron scheduler dimatikan — notifikasi WA sekarang dijadwalkan
-	// otomatis 30 menit setelah token QR absensi di-generate.
+	// Notifikasi WA harian dijadwalkan otomatis oleh cron scheduler
+	// (default 08:30 WIB, bisa diubah via WA_SEND_CRON di .env).
+	// Worker StartNotificationSender di atas mengirim antrean (pending)
+	// di notification_logs setiap 15 detik.
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

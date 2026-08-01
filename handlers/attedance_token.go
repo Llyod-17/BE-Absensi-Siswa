@@ -130,6 +130,17 @@ func SubmitToken(c *fiber.Ctx) error {
 		return c.Status(401).JSON(fiber.Map{"error": "unauthorized"})
 	}
 
+	// Hanya siswa berstatus AKTIF yang boleh absen QR
+	var user models.Users
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return c.Status(401).JSON(fiber.Map{"error": "user tidak ditemukan"})
+	}
+	if user.Status != "AKTIF" {
+		return c.Status(403).JSON(fiber.Map{
+			"error": "Akun kamu berstatus " + user.Status + ", tidak bisa absen QR. Hubungi admin.",
+		})
+	}
+
 	var req requests.SubmitToken
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Muatan tidak valid"})

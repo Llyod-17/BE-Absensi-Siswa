@@ -137,9 +137,9 @@ CREATE TABLE `notification_logs` (
   `message` text,
   `sent_date` date NOT NULL,
   `sent_at` datetime(3) DEFAULT NULL,
-  `response_status` varchar(50) DEFAULT NULL,
+  `response_status` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_daily_notif` (`user_id`,`sent_date`),
+  UNIQUE KEY `unique_daily_notif` (`user_id`,`status`,`sent_date`),
   KEY `idx_notification_logs_user_id` (`user_id`),
   CONSTRAINT `fk_users_notification_logs` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=1797 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
