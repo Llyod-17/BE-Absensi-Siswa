@@ -23,3 +23,9 @@ tmp.exe
 .DS_Store
 Thumbs.db
 .idea/
+
+
+#Compile
+app_binary
+
+proxy_cache_dir
