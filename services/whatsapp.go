@@ -22,6 +22,7 @@ const (
 var (
 	autoAlfaMutex          sync.Mutex
 	isSendingNotifications int32
+	waDisabledLogged       bool
 )
 
 // struct ringan buat nampung data target notif
@@ -164,6 +165,22 @@ func StartNotificationSender(db *gorm.DB) {
 			if !atomic.CompareAndSwapInt32(&isSendingNotifications, 0, 1) {
 				continue
 			}
+
+			// Jika notifikasi WA dimatikan (wa_enabled=false), tahan semua antrean
+			// (termasuk sisa pending) sampai diaktifkan kembali.
+			var waEnabled int64
+			db.Model(&models.NotificationSettings{}).
+				Where("setting_key = ? AND setting_value = ?", "wa_enabled", "true").
+				Count(&waEnabled)
+			if waEnabled == 0 {
+				if !waDisabledLogged {
+					log.Println("[WA-SENDER] wa_enabled=false — antrean pesan WA ditahan, tidak ada pengiriman.")
+					waDisabledLogged = true
+				}
+				atomic.StoreInt32(&isSendingNotifications, 0)
+				continue
+			}
+			waDisabledLogged = false
 
 			var pendingLogs []models.NotificationLogs
 			err := db.Where("response_status = ?", "pending").
