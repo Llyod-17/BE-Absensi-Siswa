@@ -39,7 +39,7 @@ func GetUsers(c *fiber.Ctx) error {
 	if page < 1 {
 		page = 1
 	}
-	if limit < 1 || limit > 1100 {
+	if limit < 1 || limit > 50 {
 		limit = 20
 	}
 
