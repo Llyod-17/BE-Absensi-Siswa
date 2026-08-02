@@ -375,11 +375,11 @@ func GetStudentsAttendanceToday(c *fiber.Ctx) error {
 	// Filter angkatan
 	if angkatan != "" {
 		if angkatan == "Kelas X" {
-			db = db.Where("u.class_group LIKE ?", "X-%")
+			db = db.Where("u.class_group LIKE ? OR u.class_group LIKE ?", "X-%", "X %")
 		} else if angkatan == "Kelas XI" {
-			db = db.Where("u.class_group LIKE ?", "XI-%")
+			db = db.Where("u.class_group LIKE ? OR u.class_group LIKE ?", "XI-%", "XI %")
 		} else if angkatan == "Kelas XII" {
-			db = db.Where("u.class_group LIKE ?", "XII-%")
+			db = db.Where("u.class_group LIKE ? OR u.class_group LIKE ?", "XII-%", "XII %")
 		}
 	}
 

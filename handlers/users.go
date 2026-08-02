@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/database"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/dto/requests"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/dto/responses"
@@ -52,11 +54,12 @@ func GetUsers(c *fiber.Ctx) error {
 		query = query.Where("class_group = ?", classGroup)
 	}
 	if angkatan != "" {
+		angkatan = strings.TrimSpace(strings.TrimPrefix(angkatan, "Kelas "))
 		validAngkatan := map[string]bool{"X": true, "XI": true, "XII": true}
 		if !validAngkatan[angkatan] {
 			return c.Status(400).JSON(fiber.Map{"error": "angkatan tidak valid, gunakan X, XI, atau XII"})
 		}
-		query = query.Where("class_group LIKE ?", angkatan+"-%")
+		query = query.Where("class_group LIKE ? OR class_group LIKE ?", angkatan+"-%", angkatan+" %")
 	}
 	if search != "" {
 		query = query.Where("full_name LIKE ? OR nisn LIKE ?", "%"+search+"%", "%"+search+"%")
