@@ -40,6 +40,7 @@ func SetupRouteAttedanceToken(api fiber.Router) {
 	token.Post("/absen", middleware.SiswaOnly, absenLimiter, handlers.SubmitToken)
 
 	token.Get("/qr_code/active", middleware.AdminGuru, handlers.GetActiveTokens)
+	token.Get("/active", middleware.AdminGuru, handlers.GetActiveTokens)
 	token.Get("/:id/image", middleware.AdminGuru, handlers.GetTokenQRImage)
 	token.Post("/:id/update", middleware.AdminOnly, handlers.UpdateToken)
 }
