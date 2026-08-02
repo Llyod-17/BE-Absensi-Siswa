@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/database"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/dto/requests"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/dto/responses"
@@ -19,6 +21,7 @@ import (
 // @Param limit query int false "Batas item per halaman (default: 20)"
 // @Param role query string false "Filter berdasarkan Role (siswa, guru, admin, superadmin)"
 // @Param class_group query string false "Filter berdasarkan Kelas"
+// @Param angkatan query string false "Filter berdasarkan Angkatan (Kelas X, Kelas XI, Kelas XII)"
 // @Param search query string false "Pencarian berdasarkan Nama Lengkap atau NISN"
 // @Success 200 {object} map[string]interface{}
 // @Failure 500 {object} map[string]string
@@ -29,6 +32,7 @@ func GetUsers(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 20)
 	role := c.Query("role")
 	classGroup := c.Query("class_group")
+	angkatan := c.Query("angkatan")
 	search := c.Query("search")
 	status := c.Query("status")
 
@@ -48,6 +52,10 @@ func GetUsers(c *fiber.Ctx) error {
 	}
 	if classGroup != "" {
 		query = query.Where("class_group = ?", classGroup)
+	}
+	if angkatan != "" {
+		angkatan = strings.TrimPrefix(angkatan, "Kelas ")
+		query = query.Where("class_group LIKE ?", angkatan+"-%")
 	}
 	if search != "" {
 		query = query.Where("full_name LIKE ? OR nisn LIKE ?", "%"+search+"%", "%"+search+"%")
