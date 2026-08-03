@@ -8,10 +8,18 @@ import (
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/models"
 )
 
-// DetermineAttendanceStatus menentukan status absensi berdasarkan kategori token.
-// - Token QR 1 (kategori hadir) -> "hadir"
-// - Token QR 2 (kategori telat) -> "telat"
+// DetermineAttendanceStatus menentukan status absensi berdasarkan kategori token
+// dan batas keterlambatan (LateAfter).
+// - Jika waktu sekarang melewati late_after -> "telat"
+// - Token berada di kategori hadir & belum melewati late_after -> "hadir"
+// - Token kategori telat -> "telat"
 func DetermineAttendanceStatus(token *models.AttedanceTokens) string {
+	if token.LateAfter != nil {
+		loc, _ := time.LoadLocation("Asia/Jakarta")
+		if time.Now().In(loc).After(*token.LateAfter) {
+			return "telat"
+		}
+	}
 	return token.Category
 }
 
