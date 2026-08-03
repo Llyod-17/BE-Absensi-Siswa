@@ -12,7 +12,7 @@ func Now() time.Time {
 }
 
 func DayRange(dateStr string) (time.Time, time.Time, error) {
-	loc, _ := time.LoadLocation("Asia/Jakarta")
+	loc := jakarta
 
 	var t time.Time
 	var err error

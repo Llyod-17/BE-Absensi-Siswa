@@ -13,6 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var validAngkatan = map[string]bool{"X": true, "XI": true, "XII": true}
+
 // GetUsers godoc
 // @Summary Ambil daftar pengguna
 // @Description Mengambil daftar semua pengguna dengan paginasi, filter role, filter kelas, dan search kata kunci (nama/NISN)
@@ -56,7 +58,6 @@ func GetUsers(c *fiber.Ctx) error {
 	}
 	if angkatan != "" {
 		angkatan = strings.TrimSpace(strings.TrimPrefix(angkatan, "Kelas "))
-		validAngkatan := map[string]bool{"X": true, "XI": true, "XII": true}
 		if !validAngkatan[angkatan] {
 			return c.Status(400).JSON(fiber.Map{"error": "angkatan tidak valid, gunakan X, XI, atau XII"})
 		}
@@ -76,16 +77,12 @@ func GetUsers(c *fiber.Ctx) error {
 
 	var users []models.Users
 	if err := query.
+		Omit("Password").
 		Order("id DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&users).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "gagal mengambil data pengguna"})
-	}
-
-	dayStart, dayEnd, err := utils.DayRange("")
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "gagal menghitung rentang tanggal"})
 	}
 
 	userIDs := make([]int64, 0, len(users))
@@ -95,15 +92,21 @@ func GetUsers(c *fiber.Ctx) error {
 
 	attendanceMap := map[int64]string{}
 	if len(userIDs) > 0 {
-		var logs []models.AttedanceLogs
-		if err := database.DB.Where("user_id IN ? AND clock_in_time >= ? AND clock_in_time < ?", userIDs, dayStart, dayEnd).Find(&logs).Error; err == nil {
-			for _, l := range logs {
-				attendanceMap[l.UserID] = l.Status
+		dayStart, dayEnd, err := utils.DayRange("")
+		if err == nil {
+			var logs []models.AttedanceLogs
+			if err := database.DB.
+				Select("user_id", "status").
+				Where("user_id IN ? AND clock_in_time >= ? AND clock_in_time < ?", userIDs, dayStart, dayEnd).
+				Find(&logs).Error; err == nil {
+				for _, l := range logs {
+					attendanceMap[l.UserID] = l.Status
+				}
 			}
 		}
 	}
 
-	var result []responses.UserRes
+	result := make([]responses.UserRes, 0, len(users))
 	for _, u := range users {
 		res := mappers.ToUserResponse(u)
 		if attStatus, ok := attendanceMap[u.ID]; ok {
