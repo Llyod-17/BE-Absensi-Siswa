@@ -8,6 +8,7 @@ import (
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/dto/responses"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/mappers"
 	"github.com/KicauOrgspark/BE-Absensi-Siswa/models"
+	"github.com/KicauOrgspark/BE-Absensi-Siswa/utils"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -82,9 +83,33 @@ func GetUsers(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "gagal mengambil data pengguna"})
 	}
 
+	dayStart, dayEnd, err := utils.DayRange("")
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "gagal menghitung rentang tanggal"})
+	}
+
+	userIDs := make([]int64, 0, len(users))
+	for _, u := range users {
+		userIDs = append(userIDs, u.ID)
+	}
+
+	attendanceMap := map[int64]string{}
+	if len(userIDs) > 0 {
+		var logs []models.AttedanceLogs
+		if err := database.DB.Where("user_id IN ? AND clock_in_time >= ? AND clock_in_time < ?", userIDs, dayStart, dayEnd).Find(&logs).Error; err == nil {
+			for _, l := range logs {
+				attendanceMap[l.UserID] = l.Status
+			}
+		}
+	}
+
 	var result []responses.UserRes
 	for _, u := range users {
-		result = append(result, mappers.ToUserResponse(u))
+		res := mappers.ToUserResponse(u)
+		if attStatus, ok := attendanceMap[u.ID]; ok {
+			res.AttendanceStatus = attStatus
+		}
+		result = append(result, res)
 	}
 
 	totalPages := int(total) / limit
