@@ -45,8 +45,7 @@ func GetAttendanceLogsAdmin(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	query := database.DB.Model(&models.AttedanceLogs{}).
-		Joins("JOIN users ON users.id = attedance_logs.user_id").
-		Select("attedance_logs.*")
+		Joins("JOIN users ON users.id = attedance_logs.user_id")
 
 	if startDate != "" {
 		query = query.Where("attedance_logs.clock_in_time >= ?", startDate+" 00:00:00")
@@ -71,8 +70,9 @@ func GetAttendanceLogsAdmin(c *fiber.Ctx) error {
 
 	var logs []models.AttedanceLogs
 	if err := query.
+		Select("attedance_logs.*").
 		Preload("User").
-		Order("clock_in_time DESC, id DESC").
+		Order("attedance_logs.clock_in_time DESC, attedance_logs.id DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&logs).Error; err != nil {
